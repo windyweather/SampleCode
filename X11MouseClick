@@ -39,6 +39,10 @@ bool mouseclose()
 
 bool mouseclick()
 {
+
+    //xLookAtWindows();
+
+
     int button = Button1; // just click button one. I'm sure it will be fine.
     Display *display = XOpenDisplay(NULL);
 
@@ -66,9 +70,10 @@ bool mouseclick()
     event.xbutton.subwindow = event.xbutton.window;
     qDebug() << "Mouse Window " << event.xbutton.window;
 
-#if 1 // don't look for a subwindow. Just use display. Is this Root?
+#if 0 // don't look for a subwindow. Just use display. Is this Root?
     while(event.xbutton.subwindow)
     {
+        qDebug()<<"Mouse Subwindow "<<event.xbutton.subwindow;
         event.xbutton.window = event.xbutton.subwindow;
 
         XQueryPointer(display, event.xbutton.window, &event.xbutton.root,
@@ -77,33 +82,52 @@ bool mouseclick()
     }
 #endif
 
-    qDebug() << "Mouse Subwindow" << event.xbutton.window;
+    qDebug() << "Mouse Window " << event.xbutton.window;
 
-    if(XSendEvent(display, PointerWindow, True, 0xfff, &event) == 0)
+    // lets try to GET the input focus to see if that helps
+    int revert;
+    if ( XGetInputFocus(display, &event.xbutton.window, &revert) == 0 )
     {
-        qDebug() << QString("XSendEvent error XS1");
+        qDebug() << QString("XGetInputFocus error ")<<errno;
+    }
+    qDebug() << "XGetInputFocus window: "<<event.xbutton.window;
+    // just set subwindow to the window as well
+    //event.xbutton.subwindow = event.xbutton.window;
+    event.xbutton.subwindow = 0; // try to set subwindow to nothing and see what happens
+
+    // make this a key release of KEY_ESC and see what happens
+    event.type = KeyPress;
+    event.xkey.state = ShiftMask;
+    event.xkey.keycode = 1; // looked it up on google KEY_ESC;
+    event.xkey.same_screen = True;
+
+    if(XSendEvent(display, event.xbutton.window, True, 0xfff, &event) == 0)
+    {
+        qDebug() << QString("XSendEvent error XS1 ")<<errno;
         //fprintf(stderr, "Errore nell'invio dell'evento !!!\n");
     }
     else
     {
-        qDebug() << "Button Press";
+        qDebug() << "ESC KeyPress"; //"Button Press";
     }
 
     XFlush(display);
 
     usleep(100000);
 
-    event.type = ButtonRelease;
-    event.xbutton.state = 0x100;
+    // just do it twice
+    //event.type = ButtonRelease;
+    //event.xbutton.state = 0x100;
+    event.type = KeyRelease;
 
-    if(XSendEvent(display, PointerWindow, True, 0xfff, &event) == 0)
+    if(XSendEvent(display, event.xbutton.window, True, 0xfff, &event) == 0)
     {
         qDebug() << QString("XSendEvent error XS2");
         //fprintf(stderr, "Errore nell'invio dell'evento !!!\n");
     }
     else
     {
-        qDebug() << "Button Release";
+        qDebug() << "ESC KeyRelease"; //"Button Release";
     }
 
     XFlush(display);
@@ -111,4 +135,3 @@ bool mouseclick()
     XCloseDisplay(display);
     return true;
 }
-
